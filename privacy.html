@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>プライバシーポリシー｜市県民税 計算支援</title>
+<meta name="theme-color" content="#1f4e79">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<style>
+:root { --bg: #fbf8f3; --surface: #ffffff; --line: #e3dccd; --text: #1a2a3a; --text-2: #4a5868; --brand: #1f4e79; --brand-fill: #1f4e79; --on-brand: #ffffff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e151d; --surface: #16202b; --line: #2a3846; --text: #e6ecf2; --text-2: #b4bfcb; --brand: #8fbbe8; --brand-fill: #173a5c; --on-brand: #f2f6fa; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; line-height: 1.85; }
+header { background: var(--brand-fill); color: var(--on-brand); padding: 14px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); }
+header h1 { margin: 0 auto; max-width: 680px; font-size: 18px; }
+main { max-width: 680px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px)); }
+h2 { font-size: 16px; margin: 28px 0 6px; color: var(--brand); }
+p, li { font-size: 15px; color: var(--text-2); }
+ul { padding-left: 1.2em; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px; margin-top: 16px; }
+.muted { font-size: 13px; color: var(--text-2); }
+a { color: var(--brand); overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<header><h1>プライバシーポリシー</h1></header>
+<main>
+  <div class="card">
+    <p>「市県民税 計算支援（令和9年度）」（以下「本アプリ」）における、利用者の情報の取扱いについて定めます。</p>
+  </div>
+
+  <h2>1. 取得する情報</h2>
+  <p>本アプリは、利用者の個人情報を取得・収集しません。氏名、住所、電話番号、メールアドレス、位置情報、端末の識別子、連絡先などへのアクセスも行いません。ただし、アプリ内購入をしたときは、購入の確認のために「3. アプリ内購入」の情報を扱います。</p>
+
+  <h2>2. 入力した内容の扱い</h2>
+  <ul>
+    <li>収入・控除などの入力内容は、利用者の端末の中だけで計算します。開発者や第三者のサーバーへ送信することはありません。</li>
+    <li>住所地として選んだ市区町村（税率を決めるためのもの）は、設定として端末内（ブラウザのローカルストレージ）に保存します。外部には送りません。位置情報は使いません。</li>
+    <li>「入力内容をこの端末に自動で保存する」が有効な場合、入力内容は端末内（ブラウザのローカルストレージ）に保存されます。メニューの設定でオフにしたり、「すべての入力を消す」で削除したりできます。アプリをアンインストールすると削除されます。</li>
+    <li>「ファイルに保存」「結果を送る」「印刷・PDFで保存」を使った場合、保存先・送信先は利用者が選んだ場所（端末のフォルダや、選んだアプリ）になります。</li>
+  </ul>
+
+  <h2>3. アプリ内購入（税額シミュレーション）</h2>
+  <ul>
+    <li>税額シミュレーション（節税のヒント）は、Google Play のアプリ内購入です。支払いは Google Play が扱い、開発者がクレジットカード番号などの支払い情報を受け取ることはありません。Google による情報の扱いは <a href="https://policies.google.com/privacy?hl=ja" target="_blank" rel="noopener">Google プライバシー ポリシー</a> をご覧ください。</li>
+    <li>購入したとき、および購入の確認・復元をするときは、購入ごとの番号（購入トークン）とアイテムの ID を、開発者が運営する購入確認サーバーに送ります。サーバーは Google Play Developer API に購入の状態を問い合わせて購入を確定（承認）し、結果をアプリに返します。</li>
+    <li>購入確認サーバーは Cloudflare, Inc. の Cloudflare Workers で動いています。サーバーは購入トークンを保存しません。通信の際、Cloudflare がセキュリティ等の目的で接続元のIPアドレスなどを記録することがあります（<a href="https://www.cloudflare.com/ja-jp/privacypolicy/" target="_blank" rel="noopener">Cloudflare のプライバシーポリシー</a>）。</li>
+    <li>入力した収入・控除などの内容は、購入確認サーバーにも送りません。</li>
+    <li>確認できた購入は、オフラインでも使えるように端末内（ローカルストレージ）に保存します。</li>
+  </ul>
+
+  <h2>4. 広告・アクセス解析</h2>
+  <p>本アプリは広告を表示せず、アクセス解析ツールや利用状況の収集も行いません。</p>
+
+  <h2>5. 配信サーバーについて</h2>
+  <p>本アプリの画面とプログラムは GitHub Pages（GitHub, Inc.）から配信されます。配信の際、GitHub がセキュリティ等の目的で接続元のIPアドレスなどを記録することがあります。詳しくは <a href="https://docs.github.com/ja/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub のプライバシーに関する声明</a> をご覧ください。</p>
+
+  <h2>6. 行政機関との関係</h2>
+  <p>本アプリは個人が作成したもので、国・都道府県・市区町村などの行政機関の公式アプリではなく、行政機関とは関係がありません。計算結果は参考値です。</p>
+
+  <h2>7. お問い合わせ</h2>
+  <p>開発者：田中満雄<br>連絡先：mitsuo5357@gmail.com</p>
+
+  <h2>8. 改定</h2>
+  <p>このポリシーを改定する場合は、このページでお知らせします。</p>
+  <p class="muted">制定日：2026年10月17日</p>
+  <p class="muted"><a href="./">アプリに戻る</a></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "id": "./",
+  "name": "市県民税 計算支援（令和9年度）",
+  "short_name": "住民税計算",
+  "description": "令和9年度（令和8年中の所得）の市県民税（住民税）を、申告書の項目に沿って試算するアプリです。計算結果は参考値です。行政機関の公式アプリではありません。",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbf8f3",
+  "theme_color": "#1f4e79",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "icons/screenshot-result.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "税額の内訳（市民税・県民税）" },
+    { "src": "icons/screenshot-income.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "所得の入力" }
+  ]
+}

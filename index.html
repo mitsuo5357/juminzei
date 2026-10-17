@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>市県民税 計算支援 R9</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="令和9年度（令和8年中の所得）の市県民税（住民税）を、申告書の項目に沿って試算するアプリ。計算結果は参考値です。">
+<meta name="theme-color" content="#1f4e79" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#173a5c" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+/* Layout: 申告書の控え。上に年度入りの見出し、下に「年税額の目安」の帯とタブ（所得・控除・結果）。
+   各項目は一覧の行をタップ → 下から全画面の入力シート。結果は市民税・県民税の2列の内訳表。 */
+:root {
+  --bg: #fbf8f3;          /* 紙の地色 */
+  --surface: #ffffff;
+  --surface-2: #f4f0e7;   /* 一段沈んだ面（入力欄の周り・表の見出し） */
+  --line: #e3dccd;
+  --line-strong: #c9c0ad;
+  --text: #1a2a3a;
+  --text-2: #4a5868;
+  --text-3: #7b8592;
+  --brand: #1f4e79;       /* 藍 */
+  --brand-fill: #1f4e79;
+  --brand-deep: #143654;
+  --brand-soft: #e6eef6;
+  --on-brand: #ffffff;
+  --accent: #b55a26;      /* 金額の強調（文字用） */
+  --accent-fill: #d97842;
+  --accent-soft: #fbeadb;
+  --good: #2a7a46;
+  --good-soft: #e3f1e7;
+  --bad: #b04545;
+  --bad-soft: #faecec;
+  --memo-bg: #f4ede0;     /* 計算メモ */
+  --memo-ink: #5a4a30;
+  --focus-ring: rgba(31, 78, 121, .28);
+  --scrim: rgba(16, 24, 34, .45);
+  --shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 6px 18px rgba(20, 30, 50, .07);
+  --font: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --fs-xs: 12px;
+  --fs-s: 13.5px;
+  --fs-m: 15.5px;
+  --fs-l: 17px;
+  --fs-xl: 21px;
+  --fs-hero: 42px;
+  --radius: 14px;
+  --dock-h: 124px;
+  --maxw: 640px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e151d; --surface: #16202b; --surface-2: #1c2834; --line: #2a3846; --line-strong: #3b4b5c;
+    --text: #e6ecf2; --text-2: #b4bfcb; --text-3: #8894a2;
+    --brand: #8fbbe8; --brand-fill: #173a5c; --brand-deep: #10293f; --brand-soft: #1b2f44; --on-brand: #f2f6fa;
+    --accent: #f2a774; --accent-fill: #d97842; --accent-soft: #3a2719;
+    --good: #72c793; --good-soft: #15301f; --bad: #f08d8d; --bad-soft: #3a1e1e;
+    --memo-bg: #1e1a13; --memo-ink: #dccaa6; --focus-ring: rgba(143, 187, 232, .35); --scrim: rgba(0, 0, 0, .6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e151d; --surface: #16202b; --surface-2: #1c2834; --line: #2a3846; --line-strong: #3b4b5c;
+  --text: #e6ecf2; --text-2: #b4bfcb; --text-3: #8894a2;
+  --brand: #8fbbe8; --brand-fill: #173a5c; --brand-deep: #10293f; --brand-soft: #1b2f44; --on-brand: #f2f6fa;
+  --accent: #f2a774; --accent-fill: #d97842; --accent-soft: #3a2719;
+  --good: #72c793; --good-soft: #15301f; --bad: #f08d8d; --bad-soft: #3a1e1e;
+  --memo-bg: #1e1a13; --memo-ink: #dccaa6; --focus-ring: rgba(143, 187, 232, .35); --scrim: rgba(0, 0, 0, .6);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+button { font-family: inherit; }
+:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.num, .tnum { font-variant-numeric: tabular-nums; }
+.gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.inner { max-width: var(--maxw); margin: 0 auto; }
+
+/* ─── 見出しバー ─── */
+.appbar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  background: var(--brand-fill);
+  color: var(--on-brand);
+}
+.appbar .inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; flex: 1; min-width: 0; }
+.brand-name { font-size: var(--fs-l); font-weight: 700; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-year {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  opacity: .9;
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.icon-btn:active { background: rgba(255, 255, 255, .14); }
+.icon-btn svg { width: 24px; height: 24px; }
+.preview-note {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: var(--fs-s);
+  padding-block: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ─── 画面（タブ） ─── */
+.views { padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px) + 20px); }
+.view { padding-top: 14px; }
+.view-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 2px 0; }
+.view-title { margin: 0; font-size: var(--fs-xl); font-weight: 700; letter-spacing: .02em; text-wrap: balance; }
+.view-lead { margin: 4px 2px 0; color: var(--text-2); font-size: var(--fs-s); }
+.stat {
+  margin-top: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--brand-soft);
+  border-radius: var(--radius);
+}
+.stat-label { font-size: var(--fs-s); color: var(--text-2); font-weight: 700; }
+.stat-value { font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--brand); }
+.stat-value small { font-size: var(--fs-s); margin-left: 2px; }
+
+.empty-card {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: var(--fs-s);
+  display: grid;
+  gap: 10px;
+}
+.empty-card p { margin: 0; }
+
+.group { margin-top: 22px; }
+.group-label {
+  margin: 0 4px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--text-2);
+}
+.group-note { margin: -4px 4px 8px; font-size: var(--fs-xs); color: var(--text-3); }
+.list {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.row-btn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 62px;
+  padding: 11px 14px 11px 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.row-btn:first-child { border-top: 0; }
+.row-btn:active { background: var(--surface-2); }
+.row-main { min-width: 0; }
+.row-title { display: block; font-size: var(--fs-m); font-weight: 700; line-height: 1.35; }
+.row-sub {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-amt { font-size: var(--fs-m); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.row-amt.zero { font-size: var(--fs-s); font-weight: 400; color: var(--text-3); }
+.row-amt.neg { color: var(--bad); }
+.row-btn.filled .row-title::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--accent-fill);
+  vertical-align: middle;
+}
+.chev { width: 14px; height: 14px; color: var(--text-3); }
+.info-panel { margin-top: 12px; }
+
+/* ─── 下の帯（年税額）とタブ ─── */
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(20, 30, 50, .06);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.totalbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding-block: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--accent-soft);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.totalbar .inner { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tb-label { font-size: var(--fs-s); font-weight: 700; color: var(--text-2); text-align: left; line-height: 1.3; }
+.tb-label small { display: block; font-weight: 400; font-size: var(--fs-xs); color: var(--text-3); }
+.tb-amt { font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); white-space: nowrap; }
+.tb-amt small { font-size: var(--fs-s); margin-left: 2px; }
+.tabbar { display: flex; }
+.tabbar .inner { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+.tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: 8px 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+.tab svg { width: 24px; height: 24px; }
+.tab[aria-selected="true"] { color: var(--brand); }
+.tab[aria-selected="true"] .tab-pill { background: var(--brand-soft); }
+.tab-pill { display: grid; place-items: center; width: 56px; height: 30px; border-radius: 999px; }
+
+/* ─── 入力シート（下から全画面） ─── */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top, 0px);
+  animation: sheet-in .2s ease-out;
+}
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-head {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.sheet-head .inner { display: flex; align-items: center; gap: 4px; min-height: 56px; }
+.sheet-title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-l); font-weight: 700; line-height: 1.3; text-wrap: balance; }
+.sheet-back { margin-left: -10px; margin-right: 0; color: var(--text); }
+.sheet-back:active { background: var(--surface-2); }
+.btn-done {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand-fill);
+  color: var(--on-brand);
+  font-size: var(--fs-m);
+  font-weight: 700;
+  cursor: pointer;
+}
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-top: 16px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+}
+
+/* ─── フォーム部品（移植した入力ブロック） ─── */
+.koujo-block { display: block; }
+.sheet-body .koujo-block > h3,
+.sheet-body details.optional-section > summary { display: none; }
+.sheet-body details.optional-section { border: 0; background: none; }
+.opt-body { padding: 0; }
+.koujo-desc, .opt-hint {
+  margin: 0 0 14px;
+  font-size: var(--fs-s);
+  color: var(--text-2);
+  line-height: 1.7;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 16px;
+}
+.form-row > label { grid-column: 1 / -1; font-size: var(--fs-m); line-height: 1.5; }
+.form-row > label:has(input[type="checkbox"]),
+.form-row > label:has(input[type="radio"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.form-row > .num-input,
+.form-row > input[type="text"],
+.form-row > input[type="date"],
+.form-row > select,
+.form-row > .auto-display { grid-column: 1; width: 100%; min-width: 0; }
+.form-row > .unit { grid-column: 2; color: var(--text-2); font-size: var(--fs-s); }
+.form-row > .amt-hint { grid-column: 1 / -1; margin-top: -2px; font-size: var(--fs-xs); color: var(--text-3); min-height: 1em; text-align: right; padding-right: 26px; }
+.form-row > .quick-btns, .form-row > .radio-group { grid-column: 1 / -1; }
+input.num-input, .form-row input[type="text"], .form-row input[type="date"], .form-row select, .kifu-row select, .kifu-row input {
+  height: 50px;
+  padding: 0 12px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 18px;
+}
+input.num-input { text-align: right; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.form-row select { font-size: var(--fs-m); }
+input:focus, select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--focus-ring); }
+input:disabled, select:disabled { opacity: .5; }
+input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--brand-fill); }
+.auto-display {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.quick-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn, .quick-btns button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-s);
+  font-weight: 700;
+  cursor: pointer;
+}
+.quick-btns button:active { background: var(--brand-soft); border-color: var(--brand); }
+.radio-group { display: grid; gap: 8px; }
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: var(--fs-m);
+  cursor: pointer;
+}
+.process-box {
+  margin: 4px 0 12px;
+  padding: 10px 12px 10px 14px;
+  background: var(--memo-bg);
+  color: var(--memo-ink);
+  border-left: 3px solid var(--accent-fill);
+  border-radius: 0 10px 10px 0;
+  font-size: var(--fs-s);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.process-box::before { content: "計算の過程"; display: block; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .1em; opacity: .75; margin-bottom: 2px; }
+.process-box.empty { font-style: normal; opacity: .75; }
+.result-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 4px;
+  padding: 12px 14px;
+  background: var(--brand-soft);
+  border-radius: 10px;
+}
+.result-row .label { font-size: var(--fs-s); font-weight: 700; color: var(--text-2); }
+.result-row .value { font-size: var(--fs-xl); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.people-container { display: grid; gap: 8px; margin-bottom: 10px; }
+.person-row { padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.person-row .form-row { margin: 0; grid-template-columns: minmax(0, 1fr) auto auto; }
+.person-row .form-row > .unit { grid-column: 2; }
+.person-row .form-row > .btn-remove-person { grid-column: 3; }
+.btn-add-person, .btn-add-kifu {
+  width: 100%;
+  min-height: 48px;
+  margin: 2px 0 14px;
+  border: 1.5px dashed var(--brand);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--brand);
+  font-size: var(--fs-m);
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-remove-person {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--bad);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--bad);
+  font-size: var(--fs-s);
+  cursor: pointer;
+}
+.kifu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.kifu-row .kifu-kind { grid-column: 1 / -1; width: 100%; font-size: var(--fs-m); }
+.kifu-row .kifu-amount { grid-column: 1; width: 100%; min-width: 0; text-align: right; }
+.kifu-row .unit { grid-column: 2; color: var(--text-2); font-size: var(--fs-s); }
+.kifu-row .btn-remove-kifu {
+  grid-column: 3;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--bad);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--bad);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.kifu-row .amt-hint { grid-column: 1 / -1; margin-top: -4px; font-size: var(--fs-xs); color: var(--text-3); text-align: right; padding-right: 60px; }
+
+/* 経費内訳（レシート入力） */
+.expense-detail { margin-top: 14px; border-top: 1px dashed var(--line-strong); padding-top: 10px; }
+.expense-detail summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-m);
+  font-weight: 700;
+  color: var(--brand);
+}
+.expense-body { margin-top: 8px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+.expense-add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; margin-bottom: 10px; }
+.expense-add-form input, .expense-add-form select {
+  height: 46px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px;
+}
+.expense-add-form input[type="date"], .expense-add-form input[data-role="desc"] { grid-column: 1 / -1; }
+.expense-add-form .num-input { text-align: right; }
+.expense-add-form button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--brand-fill);
+  color: var(--on-brand);
+  font-size: var(--fs-m);
+  font-weight: 700;
+  cursor: pointer;
+}
+.expense-guess-hint { grid-column: 1 / -1; font-size: var(--fs-xs); color: var(--accent); min-height: 1em; }
+.expense-table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: var(--fs-xs); }
+.expense-table th, .expense-table td { padding: 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.expense-table th { background: var(--surface-2); color: var(--text-2); font-weight: 700; }
+.expense-table td.num, .expense-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.expense-table .row-delete { min-height: 34px; padding: 0 10px; border: 1px solid var(--bad); border-radius: 999px; background: transparent; color: var(--bad); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
+.expense-empty { padding: 12px; text-align: center; font-size: var(--fs-xs); color: var(--text-3); }
+.expense-summary { display: grid; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--line); font-size: var(--fs-s); }
+.expense-summary .totals { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.expense-summary .totals strong { font-variant-numeric: tabular-nums; color: var(--brand); }
+.expense-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.expense-actions button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1.5px solid var(--brand);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--brand);
+  font-size: var(--fs-s);
+  font-weight: 700;
+  cursor: pointer;
+}
+.expense-actions button[data-role="apply"] { background: var(--brand-fill); color: var(--on-brand); border-color: var(--brand-fill); }
+.expense-actions button:disabled { opacity: .45; cursor: not-allowed; }
+
+.hikazei-badge, .badge {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  background: var(--good-soft);
+  color: var(--good);
+}
+.badge.warn { background: var(--bad-soft); color: var(--bad); }
+.badge.plain { background: var(--surface-2); color: var(--text-2); }
+
+/* ─── 結果画面 ─── */
+.hero {
+  margin-top: 12px;
+  padding: 18px 18px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.hero-label { font-size: var(--fs-s); font-weight: 700; color: var(--text-2); letter-spacing: .02em; }
+.hero-amt {
+  margin-top: 2px;
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.hero-amt small { font-size: var(--fs-l); margin-left: 4px; color: var(--text-2); }
+.hero-parts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; font-size: var(--fs-s); color: var(--text-2); }
+.hero-parts b { color: var(--text); font-variant-numeric: tabular-nums; }
+.hero-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.section-card { margin-top: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.section-title { margin: 0 0 8px; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .1em; color: var(--text-2); }
+.kv { display: grid; gap: 0; }
+.kv-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-m); }
+.kv-row:last-child { border-bottom: 0; }
+.kv-row .k { color: var(--text-2); min-width: 0; }
+.kv-row .k small { display: block; font-size: var(--fs-xs); color: var(--text-3); }
+.kv-row .v { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kv-row.strong .k { color: var(--text); font-weight: 700; }
+.ledger-card { padding-left: 12px; padding-right: 12px; }
+.ledger-wrap { overflow-x: auto; }
+.ledger { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ledger th, .ledger td { padding: 7px 3px; border-bottom: 1px solid var(--line); }
+.ledger td { width: 22%; }
+.ledger thead th { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; color: var(--text-2); text-align: right; border-bottom: 1.5px solid var(--line-strong); }
+.ledger thead th:first-child { text-align: left; }
+.ledger tbody th { text-align: left; font-weight: 400; color: var(--text-2); line-height: 1.35; }
+.ledger small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-3); }
+.ledger td { text-align: right; white-space: nowrap; }
+.ledger tr.minus td { color: var(--good); }
+.ledger tr.total th, .ledger tr.total td { font-weight: 700; color: var(--text); border-top: 1.5px solid var(--line-strong); }
+.ledger tr.grand th, .ledger tr.grand td { font-weight: 700; color: var(--accent); font-size: var(--fs-m); border-bottom: 0; border-top: 3px double var(--line-strong); }
+.judge { display: grid; gap: 8px; }
+.judge-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: var(--fs-s); }
+.judge-row .k { color: var(--text-2); }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.actions .wide { grid-column: 1 / -1; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 16px;
+  border: 1.5px solid var(--brand);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--brand);
+  font-size: var(--fs-m);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+.btn.primary { background: var(--brand-fill); color: var(--on-brand); border-color: var(--brand-fill); }
+.btn.danger { border-color: var(--bad); color: var(--bad); }
+.btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+.note { margin: 14px 2px 0; font-size: var(--fs-xs); color: var(--text-3); line-height: 1.7; }
+
+/* ─── メニュー・設定 ─── */
+.menu-list { margin-top: 6px; }
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-m);
+  text-align: left;
+  cursor: pointer;
+}
+.menu-item:first-child { border-top: 0; }
+.menu-item:active { background: var(--surface-2); }
+.menu-item svg { width: 22px; height: 22px; color: var(--brand); flex-shrink: 0; }
+.menu-item small { display: block; font-size: var(--fs-xs); color: var(--text-3); }
+.menu-item.danger, .menu-item.danger svg { color: var(--bad); }
+.setting { display: grid; gap: 6px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.setting:first-child { border-top: 0; }
+.setting label.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-m); cursor: pointer; }
+.setting small { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.6; }
+.setting-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; }
+.setting-grid label { font-size: var(--fs-s); color: var(--text-2); }
+.setting-grid input, .setting-grid select { width: 130px; }
+.setting-grid select {
+  height: 44px;
+  padding: 0 8px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-s);
+}
+.region-manual .setting-grid input, .region-manual .setting-grid select { width: 168px; }
+.about p, .about li { font-size: var(--fs-s); color: var(--text-2); line-height: 1.8; }
+.about ul { padding-left: 1.2em; margin: 6px 0; }
+.about a { color: var(--brand); overflow-wrap: anywhere; }
+.about h3 { font-size: var(--fs-m); margin: 18px 0 4px; }
+
+/* ─── 確認ダイアログ・トースト ─── */
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--scrim);
+}
+.dialog { width: min(420px, 100%); padding: 20px; background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); }
+.dialog h2 { margin: 0 0 8px; font-size: var(--fs-l); }
+.dialog p { margin: 0 0 18px; font-size: var(--fs-s); color: var(--text-2); line-height: 1.8; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.onboard ul { margin: 0 0 16px; padding-left: 1.1em; font-size: var(--fs-s); color: var(--text-2); line-height: 1.8; }
+.onboard li + li { margin-top: 4px; }
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 95;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-s);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+  display: none;
+}
+#toast.show { display: block; animation: toast-in .2s ease-out; }
+#toast button { margin-left: 12px; padding: 4px 10px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ─── シミュレーション ─── */
+.sim-section { margin-top: 16px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.sim-section h3 { margin: 0 0 8px; font-size: var(--fs-m); color: var(--brand); }
+.sim-section p { margin: 6px 0; font-size: var(--fs-s); line-height: 1.75; color: var(--text-2); }
+.sim-section p b { color: var(--text); }
+.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; font-size: var(--fs-s); }
+.sim-grid > div { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dotted var(--line); }
+.sim-grid span { color: var(--text-2); }
+.sim-grid b { font-variant-numeric: tabular-nums; }
+.sim-grid-total { grid-column: 1 / -1; }
+.sim-grid-total b { color: var(--accent); }
+.sim-canvas { display: block; width: 100%; height: 240px; margin: 10px 0 4px; }
+.sim-hl { color: var(--accent); font-size: var(--fs-l); }
+.sim-note { color: var(--text-3); font-size: var(--fs-xs); }
+.sim-koujo-list { margin: 6px 0 0; padding-left: 1.2em; font-size: var(--fs-s); line-height: 1.8; color: var(--text-2); }
+.sim-ws-wrap { overflow-x: auto; }
+.sim-ws-table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: var(--fs-s); font-variant-numeric: tabular-nums; }
+.sim-ws-table th, .sim-ws-table td { padding: 5px 6px; border: 1px solid var(--line); text-align: right; }
+.sim-ws-table th { background: var(--surface-2); color: var(--text-2); font-weight: 700; }
+.sim-ws-table td:first-child, .sim-ws-table th:first-child { text-align: left; }
+.sim-disclaimer { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); color: var(--text-2); font-size: var(--fs-xs); line-height: 1.7; }
+
+/* ─── シミュレーションの購入（アプリ内購入） ─── */
+.tag-paid {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1.75;
+}
+.btn.primary .tag-paid { background: rgba(255, 255, 255, .2); color: var(--on-brand); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+a.btn { text-decoration: none; }
+.pay-card {
+  margin-top: 12px;
+  padding: 18px 18px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.pay-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .1em; color: var(--accent); }
+.pay-kicker svg { width: 15px; height: 15px; }
+.pay-title { margin: 4px 0 2px; font-size: var(--fs-xl); line-height: 1.35; color: var(--text); }
+.pay-lead { margin: 0 0 12px; font-size: var(--fs-s); color: var(--text-2); line-height: 1.7; }
+.pay-features { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+.pay-features li { display: flex; gap: 10px; align-items: flex-start; }
+.pay-features svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 3px; color: var(--good); }
+.pay-features b { display: block; font-size: var(--fs-m); line-height: 1.5; }
+.pay-features small { display: block; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.6; }
+.pay-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.pay-price-row span { font-size: var(--fs-s); color: var(--text-2); }
+.pay-price { font-size: var(--fs-xl); color: var(--accent); font-variant-numeric: tabular-nums; }
+.pay-btn { width: 100%; }
+.btn-text {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: var(--fs-s);
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-text:disabled { opacity: .5; cursor: not-allowed; }
+.pay-msg { margin: 10px 0 0; font-size: var(--fs-s); color: var(--text-2); line-height: 1.75; }
+.pay-msg b { color: var(--text); }
+.pay-msg.warn { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--text); }
+.pay-msg.sub { font-size: var(--fs-xs); color: var(--text-3); text-align: center; }
+.pay-status { margin: 8px 0 0; font-size: var(--fs-s); font-weight: 700; color: var(--brand); }
+.pay-status:empty { display: none; }
+.pay-terms { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.pay-terms h4 { margin: 0 0 6px; font-size: var(--fs-s); color: var(--text-2); }
+.pay-terms dl { margin: 0; display: grid; gap: 6px; }
+.pay-terms dl > div { display: grid; grid-template-columns: 8.6em minmax(0, 1fr); gap: 8px; font-size: var(--fs-xs); line-height: 1.6; }
+.pay-terms dt { color: var(--text-3); }
+.pay-terms dd { margin: 0; color: var(--text-2); }
+.pay-terms a { display: inline-block; margin-top: 8px; font-size: var(--fs-xs); color: var(--brand); }
+
+/* ─── 住所地 ─── */
+.region-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.region-chip > svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--brand); }
+.region-chip .rc-main { flex: 1; min-width: 0; }
+.region-chip .rc-main small { display: block; font-size: var(--fs-xs); color: var(--text-3); }
+.region-chip .rc-main b { display: block; font-size: var(--fs-m); overflow-wrap: anywhere; }
+.region-chip .rc-change { flex-shrink: 0; font-size: var(--fs-s); font-weight: 700; color: var(--brand); }
+.region-chip.warn { border-color: var(--accent); background: var(--accent-soft); }
+.region-chip.warn > svg, .region-chip.warn .rc-change { color: var(--accent); }
+.region-now { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.region-now b { font-size: var(--fs-m); overflow-wrap: anywhere; }
+.region-now .chip-btn { flex-shrink: 0; }
+.region-manual summary { cursor: pointer; font-size: var(--fs-s); color: var(--brand); font-weight: 700; margin-top: 6px; }
+.region-manual small { display: block; margin-top: 8px; }
+.region-picker .rp-label { display: block; margin: 14px 0 4px; font-size: var(--fs-s); font-weight: 700; color: var(--text-2); }
+.region-picker select, .region-picker .rp-search {
+  width: 100%;
+  height: 50px;
+  padding: 0 12px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px;
+}
+.rp-results { display: grid; gap: 6px; margin-top: 8px; }
+.rp-hit {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rp-none { margin: 4px 2px; font-size: var(--fs-s); color: var(--text-3); }
+.region-picker .rp-selects { margin-bottom: 16px; }
+.rp-summary { margin: 0 0 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.rp-summary h3 { margin: 0 0 6px; font-size: var(--fs-l); }
+.rp-summary .rp-sub { font-weight: 400; color: var(--text-2); font-size: var(--fs-s); }
+.rp-notes { margin: 8px 0 0; padding-left: 1.2em; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.7; }
+
+/* 旧PC版の部品（データ保持用・画面には出さない） */
+#store { display: none; }
+
+@media (min-width: 720px) {
+  .views .inner { padding-top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ─── 印刷（A4・PDF保存） ─── */
+#print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff; color: #222; }
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; font-size: 10.5pt; line-height: 1.5; color: #222; }
+  #print-root h1 { font-size: 15pt; margin: 0 0 4px; padding-bottom: 4px; border-bottom: 2px solid #1f4e79; color: #1f4e79; }
+  #print-root h2 { font-size: 11pt; margin: 10px 0 4px; padding: 3px 6px; background: #1f4e79; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #print-root .meta { font-size: 9pt; color: #555; margin-bottom: 6px; }
+  #print-root table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  #print-root th, #print-root td { border: 1px solid #999; padding: 3px 6px; vertical-align: top; font-size: 9.5pt; }
+  #print-root th { background: #efe9d8; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #print-root td.v, #print-root th.v { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #print-root td.d { font-size: 8.5pt; color: #444; }
+  #print-root tr.final td { font-weight: 700; font-size: 11pt; }
+  #print-root .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+  #print-root .note { font-size: 8.5pt; color: #666; margin-top: 6px; }
+  #print-root tr { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="inner gutter">
+    <div class="brand">
+      <span class="brand-name">市県民税 計算支援</span>
+      <span class="brand-year">令和9年度</span>
+    </div>
+    <button type="button" class="icon-btn" id="btn-menu" aria-label="メニュー">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+    </button>
+  </div>
+</header>
+<div class="preview-note gutter" id="preview-note" hidden>
+  <div class="inner">プレビュー版です。サンプルの数字が入っています。印刷・ファイル保存はアプリ版で使えます。シミュレーションの購入は画面の確認用で、支払いは発生しません。</div>
+</div>
+
+<main class="views">
+  <!-- 所得 -->
+  <section class="view gutter" id="view-income" role="tabpanel" aria-labelledby="tab-income">
+    <div class="inner">
+      <div class="view-head"><h1 class="view-title">所得</h1></div>
+      <p class="view-lead">令和8年1月〜12月の収入を、申告書の欄（①〜⑦）に沿って入力します。</p>
+      <div class="stat"><span class="stat-label">合計所得金額</span><span class="stat-value" id="m-total-income">0<small>円</small></span></div>
+      <div class="empty-card" id="m-empty" hidden>
+        <p>給与や年金の収入を入力すると、住民税の目安がすぐに計算されます。</p>
+        <button type="button" class="btn" id="btn-sample">サンプルの数字で試す</button>
+      </div>
+      <div id="m-income-groups"></div>
+      <div class="info-panel" id="m-songaeki-slot"></div>
+    </div>
+  </section>
+
+  <!-- 控除 -->
+  <section class="view gutter" id="view-koujo" role="tabpanel" aria-labelledby="tab-koujo" hidden>
+    <div class="inner">
+      <div class="view-head"><h1 class="view-title">控除</h1></div>
+      <p class="view-lead">当てはまるものだけ入力します。基礎控除は自動で入ります。</p>
+      <div class="stat"><span class="stat-label">所得控除の合計</span><span class="stat-value" id="m-koujo-total">0<small>円</small></span></div>
+      <div id="m-koujo-groups"></div>
+    </div>
+  </section>
+
+  <!-- 結果 -->
+  <section class="view gutter" id="view-result" role="tabpanel" aria-labelledby="tab-result" hidden>
+    <div class="inner" id="m-result"></div>
+  </section>
+</main>
+
+<div class="dock">
+  <button type="button" class="totalbar gutter" id="totalbar" aria-label="計算結果を見る">
+    <span class="inner">
+      <span class="tb-label">年税額の目安<small>令和9年度・参考値</small></span>
+      <span class="tb-amt" id="tb-amt">0<small>円</small></span>
+    </span>
+  </button>
+  <nav class="tabbar gutter" role="tablist" aria-label="画面の切り替え">
+    <div class="inner">
+      <button type="button" class="tab" role="tab" id="tab-income" aria-controls="view-income" aria-selected="true">
+        <span class="tab-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>所得
+      </button>
+      <button type="button" class="tab" role="tab" id="tab-koujo" aria-controls="view-koujo" aria-selected="false">
+        <span class="tab-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h3"/></svg></span>控除
+      </button>
+      <button type="button" class="tab" role="tab" id="tab-result" aria-controls="view-result" aria-selected="false">
+        <span class="tab-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></span>結果
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- 入力シート（各項目の編集） -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <div class="sheet-head gutter">
+    <div class="inner">
+      <button type="button" class="icon-btn sheet-back" id="sheet-back" aria-label="戻る">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 class="sheet-title" id="sheet-title">項目</h2>
+      <button type="button" class="btn-done" id="sheet-done">完了</button>
+    </div>
+  </div>
+  <div class="sheet-body gutter" id="sheet-scroll"><div class="inner" id="sheet-body"></div></div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="print-root" aria-hidden="true"></div>
+<input type="file" id="json-loader" accept=".json,application/json,text/plain" hidden>
+
+<!-- ============================================================
+     入力ブロック置き場（PC版から移植した入力フォーム）
+     画面には出さず、一覧の行をタップすると入力シートに移して表示する。
+     ============================================================ -->
+<div id="store" aria-hidden="true">
+
+  <!-- ① 営業等所得 -->
+  <div class="koujo-block" data-card-id="eigyo" data-card-title="① 営業等" data-card-comment="事業所得（収入−経費）" data-card-res-id="res-eigyo">
+    <h3>① 営業等所得</h3>
+    <p class="opt-hint">お店・フリーランスなどの事業の収入と必要経費。</p>
+    <div class="form-row">
+      <label for="inp-eigyo-rev">収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-eigyo-rev" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-eigyo-exp">必要経費（専従者給与を含む）</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-eigyo-exp" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-eigyo-aoiro">青色申告特別控除</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-eigyo-aoiro" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+      <span class="quick-btns">
+        <button type="button" data-aoiro-target="inp-eigyo-aoiro" data-aoiro-value="0">なし</button>
+        <button type="button" data-aoiro-target="inp-eigyo-aoiro" data-aoiro-value="100000">10万</button>
+        <button type="button" data-aoiro-target="inp-eigyo-aoiro" data-aoiro-value="550000">55万</button>
+        <button type="button" data-aoiro-target="inp-eigyo-aoiro" data-aoiro-value="650000">65万</button>
+      </span>
+    </div>
+    <div class="process-box empty" id="proc-eigyo">収入・経費を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">営業等所得（青色申告特別控除の前）</span>
+      <span class="value"><span id="res-eigyo">0</span> 円</span>
+    </div>
+    <div id="expense-block-eigyo" data-expense-type="eigyo" data-expense-field="inp-eigyo-exp"></div>
+  </div>
+
+  <!-- ② 農業所得 -->
+  <div class="koujo-block" data-card-id="nougyo" data-card-title="② 農業" data-card-comment="事業所得（収入−経費）" data-card-res-id="res-nougyo">
+    <h3>② 農業所得</h3>
+    <div class="form-row">
+      <label for="inp-nougyo-rev">収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-nougyo-rev" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-nougyo-exp">必要経費（専従者給与を含む）</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-nougyo-exp" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-nougyo-aoiro">青色申告特別控除</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-nougyo-aoiro" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+      <span class="quick-btns">
+        <button type="button" data-aoiro-target="inp-nougyo-aoiro" data-aoiro-value="0">なし</button>
+        <button type="button" data-aoiro-target="inp-nougyo-aoiro" data-aoiro-value="100000">10万</button>
+        <button type="button" data-aoiro-target="inp-nougyo-aoiro" data-aoiro-value="550000">55万</button>
+        <button type="button" data-aoiro-target="inp-nougyo-aoiro" data-aoiro-value="650000">65万</button>
+      </span>
+    </div>
+    <div class="process-box empty" id="proc-nougyo">収入・経費を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">農業所得（青色申告特別控除の前）</span>
+      <span class="value"><span id="res-nougyo">0</span> 円</span>
+    </div>
+    <div id="expense-block-nougyo" data-expense-type="nougyo" data-expense-field="inp-nougyo-exp"></div>
+  </div>
+
+  <!-- ③ 不動産所得 -->
+  <div class="koujo-block" data-card-id="fudo" data-card-title="③ 不動産" data-card-comment="家賃・地代など（収入−経費）" data-card-res-id="res-fudo">
+    <h3>③ 不動産所得</h3>
+    <div class="form-row">
+      <label for="inp-fudo-rev">収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-fudo-rev" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-fudo-exp">必要経費（専従者給与を含む）</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-fudo-exp" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-fudo-fusai">うち土地等を取得するための借入金の利子</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-fudo-fusai" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" id="inp-fudo-jigyo"> 事業的規模である（おおむね5棟10室以上）</label>
+    </div>
+    <div class="form-row">
+      <label for="inp-fudo-aoiro">青色申告特別控除</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-fudo-aoiro" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+      <span class="quick-btns">
+        <button type="button" data-aoiro-target="inp-fudo-aoiro" data-aoiro-value="0">なし</button>
+        <button type="button" data-aoiro-target="inp-fudo-aoiro" data-aoiro-value="100000">10万</button>
+        <button type="button" data-aoiro-target="inp-fudo-aoiro" data-aoiro-value="550000">55万</button>
+        <button type="button" data-aoiro-target="inp-fudo-aoiro" data-aoiro-value="650000">65万</button>
+      </span>
+    </div>
+    <p class="opt-hint">事業的規模でない場合は、青色申告特別控除は10万円が上限です（事業所得がある場合を除く）。</p>
+    <div class="process-box empty" id="proc-fudo">収入・経費を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">不動産所得（青色申告特別控除の前）</span>
+      <span class="value"><span id="res-fudo">0</span> 円</span>
+    </div>
+    <div id="expense-block-fudo" data-expense-type="fudo" data-expense-field="inp-fudo-exp"></div>
+  </div>
+
+  <!-- ④ 給与所得 -->
+  <div class="koujo-block" data-card-id="salary" data-card-title="④ 給与" data-card-comment="源泉徴収票の「支払金額」" data-card-res-id="res-salary">
+    <h3>④ 給与所得</h3>
+    <p class="opt-hint">源泉徴収票の「支払金額」を入力します。令和9年度は給与所得控除の最低額が74万円になりました（給与収入220万円以下の方が対象）。</p>
+    <div class="form-row">
+      <label for="inp-salary">給与の収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-salary" autocomplete="off" placeholder="例: 3000000">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" id="inp-salary-kodomo"> 給与収入が850万円を超え、本人が特別障害者、または23歳未満の扶養親族や特別障害者の配偶者・扶養親族がいる（所得金額調整控除）</label>
+    </div>
+    <div class="process-box empty" id="proc-salary">給与収入を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">給与所得</span>
+      <span class="value"><span id="res-salary">0</span> 円</span>
+    </div>
+  </div>
+
+  <!-- ⑤ 雑所得（公的年金等） -->
+  <div class="koujo-block" data-card-id="pension" data-card-title="⑤ 公的年金等" data-card-comment="年金の源泉徴収票の「支払金額」" data-card-res-id="res-pension">
+    <h3>⑤ 雑所得（公的年金等）</h3>
+    <div class="form-row">
+      <label for="inp-pension">公的年金等の収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-pension" autocomplete="off" placeholder="例: 1500000">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-pension-other">年金以外の所得の合計（給与所得などを含む）</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-pension-other" autocomplete="off" placeholder="例: 0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" id="inp-pension-age"> 65歳以上（令和8年12月31日時点：昭和37年1月1日以前生まれ）</label>
+    </div>
+    <div class="process-box empty" id="proc-pension">年金収入を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">公的年金等の雑所得</span>
+      <span class="value"><span id="res-pension">0</span> 円</span>
+    </div>
+  </div>
+
+  <!-- ⑥ 雑所得（業務） -->
+  <div class="koujo-block" data-card-id="zatsu-b" data-card-title="⑥ 雑（業務）" data-card-comment="副業・原稿料など（収入−経費）" data-card-res-id="res-zatsu-b">
+    <h3>⑥ 雑所得（業務）</h3>
+    <p class="opt-hint">副業・原稿料・ネット販売の利益などで、事業として行っていないもの。</p>
+    <div class="form-row">
+      <label for="inp-zatsu-b-rev">収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-zatsu-b-rev" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-zatsu-b-exp">必要経費</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-zatsu-b-exp" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="process-box empty" id="proc-zatsu-b">収入・経費を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">雑所得（業務）</span>
+      <span class="value"><span id="res-zatsu-b">0</span> 円</span>
+    </div>
+    <div id="expense-block-zatsu_b" data-expense-type="zatsu_b" data-expense-field="inp-zatsu-b-exp"></div>
+  </div>
+
+  <!-- ⑦ 雑所得（その他） -->
+  <div class="koujo-block" data-card-id="zatsu-o" data-card-title="⑦ 雑（その他）" data-card-comment="個人年金・暗号資産など" data-card-res-id="res-zatsu-o">
+    <h3>⑦ 雑所得（その他）</h3>
+    <p class="opt-hint">公的年金等・業務以外の雑所得（個人年金、暗号資産の売却益など）。</p>
+    <div class="form-row">
+      <label for="inp-zatsu-o-rev">収入金額</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-zatsu-o-rev" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="form-row">
+      <label for="inp-zatsu-o-exp">必要経費</label>
+      <input type="text" inputmode="numeric" class="num-input" id="inp-zatsu-o-exp" autocomplete="off" placeholder="0">
+      <span class="unit">円</span>
+    </div>
+    <div class="process-box empty" id="proc-zatsu-o">収入・経費を入力すると、計算過程がここに表示されます。</div>
+    <div class="result-row">
+      <span class="label">雑所得（その他）</span>
+      <span class="value"><span id="res-zatsu-o">0</span> 円</span>
+    </div>
+    <div id="expense-block-zatsu_o" data-expense-type="zatsu_o" data-expense-field="inp-zatsu-o-exp"></div>
+  </div>
+
+  <!-- 損益通算・青色申告特別控除のまとめ -->
+  <div class="koujo-block" id="block-songaeki" style="display:none;">
+    <p class="group-label">損益通算・青色申告特別控除のまとめ</p>
+    <div class="process-box" id="proc-songaeki"></div>
+  </div>
+
+  <!-- 合計所得（PC版の表示用。スマホ版は画面上部に表示） -->
+  <span id="res-total-income">0</span>
+
+  <!-- 配当所得 -->
+  <details class="optional-section" id="opt-haito" data-card-id="haito" data-card-title="配当所得" data-card-comment="株式・投資信託の配当" data-card-res-id="res-haito">
+    <summary>配当所得</summary>
+    <div class="opt-body">
+      <p class="opt-hint">課税方式（総合課税／申告分離課税）を選んでください。源泉徴収だけで済ませる場合は申告不要です。</p>
+      <div class="form-row">
+        <label>課税方式</label>
+        <div class="radio-group">
+          <label><input type="radio" name="haito-method" value="sougou" checked> 総合課税（配当控除あり）</label>
+          <label><input type="radio" name="haito-method" value="bunri"> 申告分離課税（住民税5%）</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="inp-haito-revenue">配当等の収入金額</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-haito-revenue" autocomplete="off" placeholder="例: 300000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-haito-fusai">株式等を取得するための借入金の利子</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-haito-fusai" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row" id="haito-type-row">
+        <label for="sel-haito-type">配当の種類（配当控除の率が変わります）</label>
+        <select id="sel-haito-type" autocomplete="off">
+          <option value="ippan">利益の配当・剰余金の分配・特定株式投資信託</option>
+          <option value="tokutei_yougai">特定証券投資信託（外貨建以外）</option>
+          <option value="tokutei_gaikadate">特定証券投資信託（外貨建）</option>
+        </select>
+      </div>
+      <div class="process-box empty" id="proc-haito">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">配当所得</span>
+        <span class="value"><span id="res-haito">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 上場株式等の譲渡所得 -->
+  <details class="optional-section" id="opt-kabu" data-card-id="kabu" data-card-title="株式等の譲渡" data-card-comment="上場株式などの売却益" data-card-res-id="res-kabu">
+    <summary>上場株式等の譲渡所得</summary>
+    <div class="opt-body">
+      <p class="opt-hint">特定口座（源泉徴収あり）で済んでいる場合、申告は任意です。申告すると損失の繰越しや還付ができます。</p>
+      <div class="form-row">
+        <label for="inp-kabu-taika">譲渡対価（売った金額）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-kabu-taika" autocomplete="off" placeholder="例: 5000000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-kabu-shutokuhi">取得費（買った金額）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-kabu-shutokuhi" autocomplete="off" placeholder="例: 4000000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-kabu-hiyou">譲渡費用（手数料など）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-kabu-hiyou" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-kabu-kurikoshi">前年以前3年分の繰越損失</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-kabu-kurikoshi" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="process-box empty" id="proc-kabu">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">上場株式等の譲渡所得</span>
+        <span class="value"><span id="res-kabu">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 土地建物の譲渡 -->
+  <details class="optional-section" id="opt-tochi" data-card-id="tochi" data-card-title="土地・建物の譲渡" data-card-comment="不動産を売った場合" data-card-res-id="res-tochi">
+    <summary>土地・建物の譲渡所得</summary>
+    <div class="opt-body">
+      <p class="opt-hint">売った年の1月1日時点で所有期間が5年を超えると長期、5年以下は短期です。マイホームの3,000万円特別控除などは「特別控除」に入力します。</p>
+      <div class="form-row">
+        <label for="sel-tochi-youto">譲渡の区分</label>
+        <select id="sel-tochi-youto" autocomplete="off">
+          <option value="chouki_ippan">長期譲渡・一般所得（5%）</option>
+          <option value="chouki_keika_kyo">長期譲渡・軽課所得（居住用）</option>
+          <option value="chouki_tokutei">長期譲渡・特定所得（優良住宅地）</option>
+          <option value="tanki_ippan">短期譲渡・一般所得（9%）</option>
+          <option value="tanki_keigen">短期譲渡・軽減所得（土地のみ・5%）</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="inp-tochi-taika">譲渡対価（売った金額）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-tochi-taika" autocomplete="off" placeholder="例: 25000000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" id="chk-tochi-minashi"> 取得費がわからない（売った金額の5%を取得費とする）</label>
+      </div>
+      <div class="form-row">
+        <label for="inp-tochi-shutokuhi">取得費</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-tochi-shutokuhi" autocomplete="off" placeholder="例: 15000000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-tochi-hiyou">譲渡費用（仲介手数料など）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-tochi-hiyou" autocomplete="off" placeholder="例: 1000000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-tochi-tokubetsu">特別控除（マイホームの3,000万円など）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-tochi-tokubetsu" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="process-box empty" id="proc-tochi">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">土地・建物の譲渡所得</span>
+        <span class="value"><span id="res-tochi">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 特定肉用牛 -->
+  <details class="optional-section" id="opt-gyu" data-card-id="gyu" data-card-title="特定肉用牛の売却" data-card-comment="免税対象（事業所得から控除）" data-card-res-id="res-gyu">
+    <summary>特定肉用牛の売却</summary>
+    <div class="opt-body">
+      <p class="opt-hint">基準額以上で売れた頭の売却額の合計を、種類ごとに入力します。事業所得から差し引かれます。</p>
+      <div class="form-row">
+        <label for="inp-gyu-ippan">一般（1頭100万円以上の合計）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-gyu-ippan" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-gyu-kouzatu">交雑種（1頭80万円以上の合計）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-gyu-kouzatu" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-gyu-nyuyou">乳用種（1頭50万円以上の合計）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-gyu-nyuyou" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="process-box empty" id="proc-gyu">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">免税対象額（事業所得から控除）</span>
+        <span class="value"><span id="res-gyu">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 所得控除（koujo_data.js から自動生成） -->
+  <div id="koujo-container"></div>
+
+  <!-- 本人の状況（非課税の判定用） -->
+  <div class="koujo-block" id="block-honnin" data-card-id="honnin" data-card-title="本人の状況（非課税の判定）" data-card-comment="未成年に当たるか" data-card-res-id="">
+    <h3>本人の状況（非課税の判定）</h3>
+    <p class="koujo-desc">次のどれかに当てはまり、合計所得金額が135万円以下なら、住民税（均等割・所得割）はかかりません。障害者は「障害者控除」、寡婦・ひとり親はそれぞれの控除で選んでください。</p>
+    <div class="form-row">
+      <label><input type="checkbox" id="chk-honnin-miseinen"> 未成年（令和9年1月1日時点で18歳未満：平成21年1月3日以後生まれ）</label>
+    </div>
+  </div>
+
+  <!-- 算出税額 -->
+  <div class="process-box empty" id="proc-sangoshu"></div>
+  <span id="res-sangoshu">0</span>
+
+  <!-- 配当控除 -->
+  <details class="optional-section" id="opt-haito-koujo" data-card-id="haito-koujo" data-card-title="配当控除" data-card-comment="配当を総合課税にすると自動で計算" data-card-res-id="res-haito-koujo">
+    <summary>配当控除</summary>
+    <div class="opt-body">
+      <p class="opt-hint">「配当所得」を総合課税で入力すると、ここに控除額が自動で表示されます。</p>
+      <div class="process-box empty" id="proc-haito-koujo">配当所得が入力されると、計算過程が表示されます。</div>
+      <div class="result-row">
+        <span class="label">配当控除</span>
+        <span class="value"><span id="res-haito-koujo">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 配当割額・株式等譲渡所得割額控除 -->
+  <details class="optional-section" id="opt-wariri" data-card-id="wariri" data-card-title="配当割額等控除" data-card-comment="源泉徴収された住民税分" data-card-res-id="res-wariri">
+    <summary>配当割額・株式等譲渡所得割額控除</summary>
+    <div class="opt-body">
+      <p class="opt-hint">特定口座（源泉徴収あり）などで差し引かれた住民税分（5%）を入力します。所得割から控除し、引ききれない分は均等割に充当・還付されます。</p>
+      <div class="form-row">
+        <label for="inp-wariri-haito">配当割額（源泉徴収済み）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-wariri-haito" autocomplete="off" placeholder="例: 30000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-wariri-jouto">株式等譲渡所得割額（源泉徴収済み）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-wariri-jouto" autocomplete="off" placeholder="例: 25000">
+        <span class="unit">円</span>
+      </div>
+      <div class="process-box empty" id="proc-wariri">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">配当割額等控除</span>
+        <span class="value"><span id="res-wariri">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 住宅ローン控除 -->
+  <details class="optional-section" id="opt-jutaku" data-card-id="jutaku" data-card-title="住宅ローン控除" data-card-comment="所得税で引ききれない分" data-card-res-id="res-jutaku">
+    <summary>住宅借入金等特別税額控除（住宅ローン控除）</summary>
+    <div class="opt-body">
+      <p class="opt-hint">所得税の住宅ローン控除で引ききれなかった分が、住民税から控除されます。所得税の確定申告書（源泉徴収票）から数字を写してください。</p>
+      <div class="form-row">
+        <label for="inp-jutaku-kanou">所得税の住宅ローン控除可能額</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-jutaku-kanou" autocomplete="off" placeholder="例: 200000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-jutaku-shogaku">所得税額（住宅ローン控除の前）</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-jutaku-shogaku" autocomplete="off" placeholder="例: 50000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-jutaku-kazei">所得税の課税総所得金額等</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-jutaku-kazei" autocomplete="off" placeholder="例: 4000000">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="sel-jutaku-ritsu">入居した時期</label>
+        <select id="sel-jutaku-ritsu" autocomplete="off">
+          <option value="r7_5">令和7年12月までに入居（下の区分以外）：5%・上限97,500円</option>
+          <option value="r3_7">平成26年4月〜令和3年12月に入居し、消費税8%・10%で取得：7%・上限136,500円</option>
+          <option value="r8_5">令和8年1月以降に入居：5%・上限97,500円</option>
+        </select>
+      </div>
+      <div class="process-box empty" id="proc-jutaku">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">住宅ローン控除</span>
+        <span class="value"><span id="res-jutaku">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 寄附金税額控除 -->
+  <details class="optional-section" id="opt-kifukin" data-card-id="kifukin" data-card-title="寄附金税額控除" data-card-comment="ふるさと納税など" data-card-res-id="res-kifu">
+    <summary>寄附金税額控除（ふるさと納税など）</summary>
+    <div class="opt-body">
+      <p class="opt-hint">寄附ごとに1行ずつ、種類と金額を入力します。確定申告や住民税の申告をするとワンストップ特例は使えなくなるので、ふるさと納税はすべてここに入れてください。</p>
+      <div id="kifu-rows"></div>
+      <button type="button" class="btn-add-kifu" id="btn-add-kifu">＋ 寄附を追加</button>
+      <div class="process-box empty" id="proc-kifu">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">寄附金税額控除</span>
+        <span class="value"><span id="res-kifu">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <!-- 外国税額控除 -->
+  <details class="optional-section" id="opt-gaikoku" data-card-id="gaikoku" data-card-title="外国税額控除" data-card-comment="所得税で引ききれない分（簡易）" data-card-res-id="res-gaikoku">
+    <summary>外国税額控除（簡易版）</summary>
+    <div class="opt-body">
+      <p class="opt-hint">所得税の確定申告で計算した数字を写してください。県民税、市民税の順に控除します。限度額の目安は、所得税の控除限度額の県民税12%・市民税18%（指定都市は県民税6%・市民税24%）です。</p>
+      <div class="form-row">
+        <label for="inp-gai-amari">所得税で控除しきれなかった外国税額</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-gai-amari" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-gai-ken">県民税の控除限度額</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-gai-ken" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="form-row">
+        <label for="inp-gai-shi">市民税の控除限度額</label>
+        <input type="text" inputmode="numeric" class="num-input" id="inp-gai-shi" autocomplete="off" placeholder="0">
+        <span class="unit">円</span>
+      </div>
+      <div class="process-box empty" id="proc-gaikoku">入力すると、計算過程がここに表示されます。</div>
+      <div class="result-row">
+        <span class="label">外国税額控除</span>
+        <span class="value"><span id="res-gaikoku">0</span> 円</span>
+      </div>
+    </div>
+  </details>
+
+  <div class="process-box empty" id="proc-shotokuwari-chosei"></div>
+
+  <!-- 集計（PC版の表示欄。値の受け渡し用） -->
+  <div id="legacy-summary">
+    <span id="sum-income-general">0</span><span id="sum-income-bunri">0</span><span id="sum-income">0</span>
+    <span id="sum-koujo">0</span><span id="sum-koujo-diff">0</span><span id="sum-taxable">0</span>
+    <span id="sum-sangoshu">0</span><span id="sum-zeikoujo">0</span><span id="sum-shotokuwari">0</span>
+    <span id="sum-kintouwari">0</span><span id="kintou-note"></span><span id="sum-year">0</span>
+  </div>
+</div>
+
+<!-- データとロジック -->
+<script src="koujo_data.js"></script>
+<script src="expense_data.js"></script>
+<script src="calc_logic.js"></script>
+<script src="zeigaku_logic.js"></script>
+<!-- 住所地（令和9年1月1日）ごとの税率 -->
+<script src="region_data.js"></script>
+<script src="region.js"></script>
+<!-- アプリ本体 -->
+<script src="app_core.js"></script>
+<!-- シミュレーションの購入（設定・課金） -->
+<script src="billing_config.js"></script>
+<script src="billing.js"></script>
+<script src="app_shell.js"></script>
+</body>
+</html>
