@@ -1,6 +1,6 @@
 /* ============================================================
  * app_shell.js
- * 市県民税 計算支援（令和9年度）— スマホ画面の制御
+ * 個人住民税 計算支援（令和9年度）— スマホ画面の制御
  *
  *  ・タブ（所得・控除・結果）と、下の「年税額の目安」の帯
  *  ・一覧の行をタップ → 入力ブロックを全画面シートに移して編集（PC版v2の方式）
@@ -14,7 +14,7 @@
 
   const PREVIEW = !!window.__PREVIEW__;
   const USE_HISTORY = !PREVIEW;
-  const APP_VERSION = "1.2.0（令和9年度版）";
+  const APP_VERSION = "1.2.1（令和9年度版）";
   const $ = (id) => document.getElementById(id);
   const num = (n) => Math.floor(Number(n) || 0).toLocaleString("ja-JP");
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -472,7 +472,7 @@
     const html = `
       <div class="view-head"><h1 class="view-title">結果</h1></div>
       <section class="hero" aria-label="年税額の目安">
-        <div class="hero-label">令和9年度 市県民税の年税額（目安）</div>
+        <div class="hero-label">令和9年度 住民税の年税額（目安）</div>
         <div class="hero-amt">${S.yearTax < 0 ? "△" + num(-S.yearTax) : num(S.yearTax)}<small>円</small></div>
         <div class="hero-parts"><span>所得割 <b>${num(S.shotokuWari)}円</b></span><span>均等割 <b>${num(S.kintouWari)}円</b></span></div>
         ${badges.length ? `<div class="hero-badges">${badges.join("")}</div>` : ""}
@@ -538,7 +538,7 @@
   async function shareSummary() {
     const text = window.APP.summaryText();
     if (!PREVIEW && navigator.share) {
-      try { await navigator.share({ title: "市県民税の試算（令和9年度）", text }); return; }
+      try { await navigator.share({ title: "住民税の試算（令和9年度）", text }); return; }
       catch (e) { if (e && e.name === "AbortError") return; }
     }
     try {
@@ -971,7 +971,7 @@
         ${tokushohoUrl() ? `<p><a href="${esc(tokushohoUrl())}" target="_blank" rel="noopener">特定商取引法に基づく表記</a></p>` : ""}`;
     openContentSheet("このアプリについて", `
       <div class="about">
-        <p>令和9年度（令和8年1月1日〜12月31日の所得）の市県民税（個人住民税）を、申告書の項目に沿って試算するアプリです。</p>
+        <p>令和9年度（令和8年1月1日〜12月31日の所得）の個人住民税（市区町村民税と都道府県民税）を、申告書の項目に沿って試算するアプリです。</p>
         <h3>ご注意</h3>
         <ul>
           <li>このアプリは個人が作成したもので、国・都道府県・市区町村などの<b>行政機関の公式アプリではありません</b>。行政機関とは関係がありません。</li>
@@ -1024,7 +1024,7 @@
     scrim.innerHTML = `<div class="dialog onboard" role="dialog" aria-modal="true" aria-labelledby="ob-t">
       <h2 id="ob-t">はじめにお読みください</h2>
       <ul>
-        <li>令和9年度（令和8年中の所得）の市県民税を試算するアプリです。</li>
+        <li>令和9年度（令和8年中の所得）の個人住民税を試算するアプリです。</li>
         <li>計算結果は<b>参考値</b>です。実際の税額は市区町村から届く通知でご確認ください。</li>
         <li>個人が作成したアプリで、<b>行政機関の公式アプリではありません</b>。</li>
         <li>入力した内容はこの端末の中だけで扱い、外部には送りません。</li>

@@ -1,7 +1,7 @@
 /* ============================================================
  * billing_config.js — シミュレーション（節税のヒント）の課金の設定
  *
- * ★公開する前に、YOUR_… のところを実際の値に書き換えてください。
+ * ★公開する前に、YOUR_… のところ（購入確認サーバーの URL）を実際の値に書き換えてください。
  * ★書き換えたら sw.js の CACHE の番号も上げてください（利用者の端末に届くように）。
  * ============================================================ */
 window.BILLING_CONFIG = {
@@ -16,7 +16,7 @@ window.BILLING_CONFIG = {
   verifyUrl: "https://juminzei-billing.YOUR_SUBDOMAIN.workers.dev/verify",
 
   // ブラウザで開いた人に案内する Google Play のページ
-  playStoreUrl: "https://play.google.com/store/apps/details?id=io.github.YOUR_GITHUB_NAME.juminzei",
+  playStoreUrl: "https://play.google.com/store/apps/details?id=io.github.mitsuo5357.juminzei",
 
   // 特定商取引法に基づく表記のページ
   tokushohoUrl: "tokushoho.html",

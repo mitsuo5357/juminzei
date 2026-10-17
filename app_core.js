@@ -1,6 +1,6 @@
 /* ============================================================
  * app_core.js
- * 市県民税 計算支援（令和9年度）— アプリ本体（計算と入力フォーム）
+ * 個人住民税 計算支援（令和9年度）— アプリ本体（計算と入力フォーム）
  *
  * PC版（R8_計算支援.html）のメインスクリプトを移植したもの。
  * 計算の流れ（recalcAll）はPC版と同じで、次の点を変えている。
@@ -587,7 +587,7 @@
       <h2>明細</h2>
       <table><tr><th>日付</th><th>摘要</th><th>科目</th><th class="v">金額</th><th class="v">按分</th><th class="v">按分後</th></tr>${rows}
         <tr class="final"><td colspan="3">合計</td><td class="v">${sum.toLocaleString("ja-JP")}円</td><td></td><td class="v">${ap.toLocaleString("ja-JP")}円</td></tr></table>
-      <p class="note">市県民税 計算支援（令和9年度）で作成した整理用の資料です。申告内容は申告書の手引き等でご確認ください。</p>
+      <p class="note">個人住民税 計算支援（令和9年度）で作成した整理用の資料です。申告内容は申告書の手引き等でご確認ください。</p>
     `);
   }
 
@@ -1361,8 +1361,8 @@
 
     const ts = new Date().toLocaleString("ja-JP", { hour12: false });
     printHTML(`
-      <h1>令和9年度 市県民税の試算（参考値）</h1>
-      <div class="meta">作成日時：${escapeHTML(ts)}／市県民税 計算支援（令和9年度・令和8年分の所得）／住所地：${escapeHTML(ZEIGAKU_LOGIC.getRegion().label || "")}</div>
+      <h1>令和9年度 住民税の試算（参考値）</h1>
+      <div class="meta">作成日時：${escapeHTML(ts)}／個人住民税 計算支援（令和9年度・令和8年分の所得）／住所地：${escapeHTML(ZEIGAKU_LOGIC.getRegion().label || "")}</div>
       <div class="grid2">
         <div>
           <h2>所得</h2>
@@ -1396,7 +1396,7 @@
     const S = STATE;
     const y = (n) => Math.floor(Number(n) || 0).toLocaleString("ja-JP") + "円";
     const lines = [
-      "令和9年度 市県民税の試算（参考値）",
+      "令和9年度 住民税の試算（参考値）",
       `住所地：${ZEIGAKU_LOGIC.getRegion().label || ""}`,
       `年税額の目安：${S.yearTax < 0 ? "△" + y(-S.yearTax) + "（還付）" : y(S.yearTax)}`,
       `（所得割 ${y(S.shotokuWari)}／均等割 ${y(S.kintouWari)}）`,
